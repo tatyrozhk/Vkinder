@@ -8,7 +8,6 @@ class Authenticator:
         self.vk = None
 
     def authenticate(self):
-        """Аутентификация в VK с использованием токена доступа."""
         access_token = getpass("Введите ваш токен доступа VK: ")
         try:
             self.vk_session = vk_api.VkApi(token=access_token)

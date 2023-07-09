@@ -6,22 +6,20 @@ class User:
         self.vk = vk_session.get_api()
         self.db = db
 
-    def search_users(self, user_id):
-        """Поиск пользователей, соответствующих заданному ID пользователя, возрасту, городу, полу и семейному положению."""
+    def search_users(self):
+        """Поиск пользователей."""
         try:
-            user_info = self.vk.users.get(user_ids=user_id, fields='sex, bdate, city')[0]
-            self.db.save_user(user_info)
+            # Ваш код для поиска пользователей
+            user_id = input("Введите ваш ID пользователя VK: ")
 
-            # Получение предпочтений пользователя для поиска
             min_age = int(input("Введите минимальный возраст: "))
             max_age = int(input("Введите максимальный возраст: "))
             city = input("Введите город: ")
             sex = int(input("Введите пол (1 - женский, 2 - мужской): "))
             relationship_status = int(input("Введите семейное положение (0 - не указано): "))
 
-            # Выполнение поиска на основе предпочтений пользователя
             search_params = {
-                'count': 10,
+                'count': 100,
                 'sex': sex,
                 'status': relationship_status,
                 'age_from': min_age,
@@ -29,10 +27,20 @@ class User:
                 'city': city,
                 'fields': 'sex, bdate, city',
             }
+
             search_results = self.vk.users.search(**search_params)
 
             for result in search_results['items']:
-                self.db.save_user(result)
+                user_data = {
+                    'id': result['id'],
+                    'first_name': result.get('first_name', ''),
+                    'last_name': result.get('last_name', ''),
+                    'sex': result.get('sex', 0),
+                    'bdate': result.get('bdate', ''),
+                    'city': result.get('city', {}).get('title', '')
+                }
+
+                self.db.save_user(user_data)
 
                 # Получение топ-3 популярных фотографий пользователя
                 photos_params = {
@@ -40,7 +48,7 @@ class User:
                     'album_id': 'profile',
                     'extended': 1,
                     'photo_sizes': 1,
-                    'count': 100,
+                    'count': 3,
                 }
                 photos_response = self.vk.photos.get(**photos_params)
                 photos = photos_response['items']
