@@ -1,8 +1,5 @@
 import pytest
-from vkinder import search_users, get_profile_photos, sort_photos_by_likes, create_result_json
-from database import session
-from models import User, DatingUser, Photos, BlackList
-from vk_api.exceptions import ApiError
+from vkinder import search_users, get_profile_photos, sort_photos_by_likes, create_result_json, register_user, add_user_to_favorites, add_user_photo_to_favorites, add_user_to_blacklist
 
 
 class TestVkinder:
