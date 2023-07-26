@@ -14,47 +14,36 @@ longpoll = VkLongPoll(vk)
 session = Session()
 connection = engine.connect()
 
+count = 30
+
+# Функция получения информации о пользователе по его vk_id
+def get_user_info(vk_id):
+    vk_ = vk_api.VkApi(token=user_token)
+    try:
+        response = vk_.method('users.get', {
+            'user_ids': vk_id,
+            'fields': 'first_name,last_name'
+        })
+        if response and 'response' in response:
+            user_info = response['response'][0]  # Получаем первого пользователя из ответа
+            return user_info
+        else:
+            print(f"Пользователь с vk_id={vk_id} не найден.")
+            return None
+    except vk_api.exceptions.ApiError as e:
+        # Обработка ошибки API VK
+        print(f"Ошибка API VK: {e}")
+        return None
+    except Exception as e:
+        # Обработка других ошибок
+        print(f"Ошибка: {e}")
+        return None
+
 # Ищет людей по заданным критериям с использованием сдвига offset
 @cache_vk_api_decorator
-def search_users(user_id, sex=None, age_from=None, age_to=None, city=None, count=50):
+def search_users(sex, age_from, age_to, city):
     vk_ = vk_api.VkApi(token=user_token)
-    
-    # Запрашиваем параметры у пользователя, если они не были переданы
-    if not sex:
-        vk_.method('messages.send', {
-            'user_id': user_id,
-            'message': 'Укажите пол (1 - женский, 2 - мужской):',
-            'random_id': vk_api.utils.get_random_id()
-        })
-        response = vk_.method('messages.get', {'count': 1})
-        sex = response['items'][0]['text']
-
-    if not age_from:
-        vk_.method('messages.send', {
-            'user_id': user_id,
-            'message': 'Укажите минимальный возраст:',
-            'random_id': vk_api.utils.get_random_id()
-        })
-        response = vk_.method('messages.get', {'count': 1})
-        age_from = response['items'][0]['text']
-
-    if not age_to:
-        vk_.method('messages.send', {
-            'user_id': user_id,
-            'message': 'Укажите максимальный возраст:',
-            'random_id': vk_api.utils.get_random_id()
-        })
-        response = vk_.method('messages.get', {'count': 1})
-        age_to = response['items'][0]['text']
-
-    if not city:
-        vk_.method('messages.send', {
-            'user_id': user_id,
-            'message': 'Укажите город:',
-            'random_id': vk_api.utils.get_random_id()
-        })
-        response = vk_.method('messages.get', {'count': 1})
-        city = response['items'][0]['text']
+    count = 30
 
     try:
         all_persons = []
@@ -76,14 +65,7 @@ def search_users(user_id, sex=None, age_from=None, age_to=None, city=None, count
             items = response['items']
             if not items:
                 break
-            for element in items:
-                person = [
-                    element['first_name'],
-                    element['last_name'],
-                    link_profile + str(element['id']),
-                    element['id']
-                ]
-                all_persons.append(person)
+            all_persons.extend(items)  # Изменили append на extend, чтобы добавлять информацию о пользователях, а не только их id
             offset += count
         return all_persons
     except vk_api.exceptions.ApiError as e:
@@ -98,25 +80,22 @@ def search_users(user_id, sex=None, age_from=None, age_to=None, city=None, count
 
 # Получает фото профиля пользователя
 @cache_vk_api_decorator
-def get_profile_photos(user_id):
+def get_profile_photos(anket_id):
     vk_ = vk_api.VkApi(token=user_token)
     try:
         response = vk_.method('photos.get', {
-            'owner_id': user_id,
+            'owner_id': anket_id,
             'album_id': 'profile',
-            'count': 10,
+            'count': 30,
             'extended': 1,
             'photo_sizes': 1,
         })
         users_photos = []
-        for i in range(10):
+        for i in range(30):
             try:
-                users_photos.append([
-                    response['items'][i]['likes']['count'],
-                    'photo' + str(response['items'][i]['owner_id']) + '_' + str(response['items'][i]['id'])
-                ])
+                users_photos.append('photo' + str(response['items'][i]['owner_id']) + '_' + str(response['items'][i]['id']))
             except IndexError:
-                users_photos.append(['нет фото.'])
+                users_photos.append('нет фото.')
         return users_photos
     except vk_api.exceptions.ApiError as e:
         # Обработка ошибки API VK
@@ -138,22 +117,20 @@ def sort_photos_by_likes(photos):
     return sorted_photos
 
 
-
-
 # Создает JSON-файл с результатами
 def create_result_json(lst):
     today = datetime.date.today()
     today_str = f'{today.day}.{today.month}.{today.year}'
-    res = {}
-    res_list = []
-    for num, info in enumerate(lst):
+    res_list = []  # Создаем пустой список для хранения информации о пользователях
+    for user_info in lst:
+        res = {}  # Создаем новый словарь для каждого пользователя
         res['data'] = today_str
-        res['first_name'] = info[0]
-        res['second_name'] = info[1]
-        res['link'] = info[2]
-        res['id'] = info[3]
-        res_list.append(res.copy())
+        res['first_name'] = user_info['first_name']
+        res['second_name'] = user_info['last_name']
+        res['link'] = f'https://vk.com/id{user_info["id"]}'
+        res['id'] = user_info['id']
+        res_list.append(res)
 
-    with open("result.json", "a", encoding='UTF-8') as write_file:
+    with open("result.json", "w", encoding='UTF-8') as write_file:
         json.dump(res_list, write_file, ensure_ascii=False)
     print('Информация о загруженных файлах успешно записана в json файл.')

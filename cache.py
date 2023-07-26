@@ -30,6 +30,8 @@ def cache_vk_api(func):
 
 # Декоратор для кэширования результатов запросов VK API
 def cache_vk_api_decorator(func):
+    cache = {}  # Move the cache dictionary outside the wrapper function
+
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         cache_key = (func.__name__, args, frozenset(kwargs.items()))
@@ -39,5 +41,4 @@ def cache_vk_api_decorator(func):
         cache[cache_key] = result
         return result
 
-    cache = {}
     return wrapper
